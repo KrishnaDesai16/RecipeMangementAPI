@@ -101,20 +101,23 @@ def create_recipe():
 def update_receipe(Recipe_ID):
       data=request.get_json()
       if not data:
-        return {"message": "No input data provided"},400  #error:data is not in json format
+        return {"message": "No input data provided"} ,400 #error:data is not in json format
       get_recipe=recipe.query.get(Recipe_ID)
-      print(get_recipe)
+      if(get_recipe == None):
+         return {"message": "Recipe Id doesn't exist, can't update!"}, 404
       if data.get('Recipe'):
          get_recipe.Recipe = data['Recipe']
+         print(get_recipe.Recipe)
       if data.get('Dish'):
          get_recipe.Dish = data['Dish']
       db.session.add(get_recipe)
       db.session.commit()
       recipe_schema = recipeSchema(only=['Recipe_ID', 'Recipe', 'Dish'])
       recipes = recipe_schema.dump(get_recipe)
-      if not recipes:
-         return jsonify({'message': 'recipe not found'}),HTTPStatus.NOT_FOUND 
-      return make_response(jsonify({"Recipe": recipes}))
+      if recipes:
+          return make_response(jsonify({"Recipe": recipes})),HTTPStatus.CREATED
+      return jsonify({'message': 'recipe not found'}),HTTPStatus.NOT_FOUND 
+     
    
    
 #Delete Recipe By ID
@@ -124,7 +127,7 @@ def delete_recipe_by_id(Recipe_ID):
    if get_recipe:
       db.session.delete(get_recipe)
       db.session.commit()
-      return make_response("", 204) # recipe deleted sucessfully
+      return make_response(jsonify({'message':'Recipe Deleted...'})),HTTPStatus.OK # recipe deleted sucessfully
    return jsonify({'message': 'recipe not found'}), HTTPStatus.NOT_FOUND  #error:if recipe not found in database
 
   
@@ -133,3 +136,9 @@ def delete_recipe_by_id(Recipe_ID):
 
 if __name__=="__main__":
     app.run(debug=True)
+
+
+
+person = Person.query \
+        .filter(Person.person_id == person_id) \
+        .one_or_none()
