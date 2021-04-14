@@ -50,7 +50,7 @@ class InvalidDataType(Exception):
 
 def must_not_be_blank(data):
     if not data:
-        raise ValidationError("Can't Empty!") #raise Validation error of input data has different datatype
+        raise ValidationError("Can't be Empty!") #raise Validation error of input data has different datatype
 
 def null_and_type_check(data, recipeObject):
    messageString = []
@@ -89,6 +89,7 @@ class recipeSchema(ModelSchema):
       Dish = fields.String(required=True,validate=must_not_be_blank)  #custom error
 
 ##### API #####
+
 # Get All Recipes    
 @app.route('/recipes', methods=['GET'])
 def get_recipes():
@@ -121,7 +122,9 @@ def create_recipe():
       recipes = recipe_schema.load(data)
    except ValidationError as err:
         return err.messages, 422    #error: if input data is not in correct datatype
-      
+   improper_data = null_and_type_check(data, recipes)
+   if improper_data:
+      return {"message": improper_data}, 404
    result = recipe_schema.dump(recipes.create())
    return make_response(jsonify({"Recipe": result})),HTTPStatus.CREATED
    
@@ -137,7 +140,6 @@ def update_receipe(Recipe_ID):
       improperData = null_and_type_check(data, get_recipe)
       if improperData:
             return {"message": improperData}, 404
-
       db.session.add(get_recipe)
       db.session.commit()
       recipe_schema = recipeSchema(only=['Recipe_ID', 'Recipe', 'Dish'])
