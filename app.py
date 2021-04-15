@@ -20,7 +20,7 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI']="sqlite:///recipe.db"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS']= False
 
-app.register_error_handler(404, page_not_found)
+app.register_error_handler(404,page_not_found)
 app.register_error_handler(400,BAD_REQUEST)
 app.register_error_handler(405,method_not_allowed)
 db=SQLAlchemy(app)
@@ -57,14 +57,11 @@ class recipe(db.Model):
 
 
 ### Custom validator ###
-class InvalidDataType(Exception):
-       pass
-
 def must_not_be_blank(data):
     if not data:
-        raise ValidationError("Can't be Empty!") #raise Validation error of input data has different datatype
+        raise ValidationError("Can't be Empty!") #raise Validation error on empty input data
 
-def null_and_type_check(data, recipeObject):
+def null_and_type_check(data, recipeObject): #check for not empty-string data input
    messageString = []
    emptyVariables = []   
    if data.get('Recipe'):
@@ -109,8 +106,8 @@ def get_recipes():
    recipe_schema = recipeSchema(many=True)
    recipes = recipe_schema.dump(get_all)
    if recipes:
-      return make_response(jsonify({"Recipes": recipes}))
-   return jsonify({'message': 'recipes not found'}), HTTPStatus.NOT_FOUND
+      return make_response(jsonify({"Recipes": recipes}),HTTPStatus.OK)
+   return jsonify({'message': 'recipes not found !'}), HTTPStatus.NOT_FOUND
 
 # Get All Recipes By ID
 @app.route('/recipes/<int:Recipe_ID>', methods=['GET'])
@@ -119,7 +116,7 @@ def get_recipe_by_id(Recipe_ID):
    recipe_schema = recipeSchema()
    recipes = recipe_schema.dump(get_recipe)
    if recipes:
-          return make_response(jsonify({"Recipe": recipes}))
+          return make_response(jsonify({"Recipe": recipes}),HTTPStatus.OK)
    return jsonify({'message': 'recipe not found'}), HTTPStatus.NOT_FOUND
 
 #Add Recipe 
@@ -132,10 +129,10 @@ def create_recipe():
    try:
       recipes = recipe_schema.load(data)
    except ValidationError as err:
-        return err.messages, 422    #error: if input data is not in correct datatype
+        return err.messages, 422    #error: invalid datatype of input data
    improper_data = null_and_type_check(data, recipes)
    if improper_data:
-      return {"message": improper_data}, 404
+      return {"message": improper_data}, 422
    result = recipe_schema.dump(recipes.create())
    return make_response(jsonify({"Recipe": result})),HTTPStatus.CREATED
    
@@ -148,9 +145,9 @@ def update_receipe(Recipe_ID):
       get_recipe=recipe.query.get(Recipe_ID)
       if(get_recipe == None):
          return {"message": "Recipe Id doesn't exist, can't update!"}, 404
-      improperData = null_and_type_check(data, get_recipe)
+      improperData = null_and_type_check(data, get_recipe) #error: check for not empty-string data input
       if improperData:
-            return {"message": improperData}, 404
+            return {"message": improperData}, 422
       db.session.add(get_recipe)
       db.session.commit()
       recipe_schema = recipeSchema(only=['Recipe_ID', 'Recipe', 'Dish'])
@@ -169,6 +166,7 @@ def delete_recipe_by_id(Recipe_ID):
       return make_response(jsonify({'message':'Recipe Deleted!'})),HTTPStatus.OK # recipe deleted sucessfully
    return jsonify({'message': 'recipe not found'}), HTTPStatus.NOT_FOUND  #error:if recipe not found in database
 
+#Delete All Recipes
 @app.route('/recipes',methods=['DELETE'])
 def delete_all():
    db.session.query(recipe).delete()
