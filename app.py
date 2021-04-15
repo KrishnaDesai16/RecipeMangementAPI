@@ -5,6 +5,7 @@ from http import HTTPStatus
 from flask_sqlalchemy import SQLAlchemy  #thorugh python change is databse
 from marshmallow import fields,ValidationError #handle ValidationError
 from marshmallow_sqlalchemy import ModelSchema
+from sqlalchemy.types import TypeDecorator
 
 ### ERRORS HANDLING ##
 def page_not_found(e):  # error:URL Not Found
@@ -26,10 +27,20 @@ db=SQLAlchemy(app)
 
 
 ##### MODELS #####
+class StrippedString(TypeDecorator):
+
+    impl = db.String
+
+    def process_bind_param(self, value, dialect):
+        # In case you have nullable string fields and pass None
+        return value.strip() if value else value
+
+    def copy(self, **kw):
+        return StrippedString(self.impl.length)
 class recipe(db.Model):
     Recipe_ID=db.Column(db.Integer,primary_key=True)
-    Recipe=db.Column(db.String(500),nullable=False)
-    Dish=db.Column(db.String(20),nullable=False)
+    Recipe=db.Column(StrippedString(500),nullable=False)
+    Dish=db.Column(StrippedString(20),nullable=False)
 
     def create(self):
        db.session.add(self)
@@ -42,6 +53,7 @@ class recipe(db.Model):
 
     def __repr__(self):
                 return f"{self.Recipe_ID}"
+
 
 
 ### Custom validator ###
@@ -77,7 +89,6 @@ def null_and_type_check(data, recipeObject):
       return ', '.join(output)
    else:
       return '' 
-
 
 ### SCHEMAS ###
 class recipeSchema(ModelSchema):
@@ -148,8 +159,6 @@ def update_receipe(Recipe_ID):
           return make_response(jsonify({"Recipe": recipes})),HTTPStatus.OK
       return jsonify({'message': 'recipe not found'}),HTTPStatus.NOT_FOUND 
      
-   
-   
 #Delete Recipe By ID
 @app.route('/recipes/<int:Recipe_ID>', methods=['DELETE'])
 def delete_recipe_by_id(Recipe_ID):
@@ -157,12 +166,17 @@ def delete_recipe_by_id(Recipe_ID):
    if get_recipe:
       db.session.delete(get_recipe)
       db.session.commit()
-      return make_response(jsonify({'message':'Recipe Deleted...'})),HTTPStatus.OK # recipe deleted sucessfully
+      return make_response(jsonify({'message':'Recipe Deleted!'})),HTTPStatus.OK # recipe deleted sucessfully
    return jsonify({'message': 'recipe not found'}), HTTPStatus.NOT_FOUND  #error:if recipe not found in database
 
+@app.route('/recipes',methods=['DELETE'])
+def delete_all():
+   db.session.query(recipe).delete()
+   db.session().commit()
+   return make_response(jsonify({'message':' ALL The Recipes Are Deleted!'})),HTTPStatus.OK
+
+
   
-
-
 
 if __name__=="__main__":
     app.run(debug=True)
